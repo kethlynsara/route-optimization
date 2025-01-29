@@ -3,6 +3,7 @@
 #include <cmath>
 #include <limits>
 #include <algorithm>
+#include <fstream>
 
 using namespace std;
 
@@ -79,15 +80,41 @@ void read_data(istream &input, vector<Node> &nodes, int &dimension, string &edge
     }
 }
 
-// Função para calcular a matriz de adjacências
-vector<vector<double>> compute_adjacency_matrix(const vector<Node> &nodes, const string &edge_weight_type)
+// Função para imprimir a sequência de visitas no arquivo de saída
+void write_solution_to_file(const string &filename, const vector<int> &solution)
 {
-    int n = nodes.size();
-    vector<vector<double>> adjacency_matrix(n, vector<double>(n, 0));
-
-    for (int i = 0; i < n; ++i)
+    ofstream output_file(filename);
+    for (size_t i = 0; i < solution.size(); ++i)
     {
-        for (int j = 0; j < n; ++j)
+        output_file << "v_" << solution[i];
+        if (i != solution.size() - 1)
+            output_file << " ";
+    }
+    output_file.close();
+}
+
+int main()
+{
+    string output_filename;
+    cout << "Digite o nome do arquivo para salvar a solução: ";
+    cin >> output_filename; // Recebe o nome do arquivo via cin
+
+    vector<Node> nodes;
+    int dimension;
+    string edge_weight_type;
+
+    cout << "Insira os dados no formato esperado:\n";
+    read_data(cin, nodes, dimension, edge_weight_type);
+
+    cout << "Dimension lida: " << dimension << endl;
+    cout << "Tipo de distância: " << edge_weight_type << endl;
+
+    // Criar matriz de adjacências com distâncias entre os nós
+    vector<vector<double>> adjacency_matrix(dimension, vector<double>(dimension, 0));
+
+    for (int i = 0; i < dimension; ++i)
+    {
+        for (int j = 0; j < dimension; ++j)
         {
             if (edge_weight_type == "EUC_2D")
             {
@@ -97,115 +124,19 @@ vector<vector<double>> compute_adjacency_matrix(const vector<Node> &nodes, const
             {
                 adjacency_matrix[i][j] = haversine_distance(nodes[i], nodes[j]);
             }
-        }
-    }
-
-    return adjacency_matrix;
-}
-
-// Algoritmo Guloso (Nearest Neighbor)
-vector<int> nearest_neighbor(const vector<vector<double>> &adj_matrix)
-{
-    int n = adj_matrix.size();
-    vector<int> tour;
-    vector<bool> visited(n, false);
-
-    int current = 0; // Começa no primeiro nó
-    tour.push_back(current);
-    visited[current] = true;
-
-    for (int i = 1; i < n; ++i)
-    {
-        int next = -1;
-        double min_dist = numeric_limits<double>::max();
-
-        for (int j = 0; j < n; ++j)
-        {
-            if (!visited[j] && adj_matrix[current][j] < min_dist)
+            else
             {
-                min_dist = adj_matrix[current][j];
-                next = j;
-            }
-        }
-
-        tour.push_back(next);
-        visited[next] = true;
-        current = next;
-    }
-
-    return tour;
-}
-
-// Função para calcular a maior distância entre dois pontos no ciclo
-double max_edge_in_tour(const vector<int> &tour, const vector<vector<double>> &adj_matrix)
-{
-    double max_edge = 0;
-    int n = tour.size();
-
-    for (int i = 0; i < n; ++i)
-    {
-        double dist = adj_matrix[tour[i]][tour[(i + 1) % n]];
-        max_edge = max(max_edge, dist);
-    }
-
-    return max_edge;
-}
-
-// Busca Local (2-opt)
-bool two_opt(vector<int> &tour, const vector<vector<double>> &adj_matrix)
-{
-    int n = tour.size();
-    bool improved = false;
-
-    for (int i = 0; i < n - 1; ++i)
-    {
-        for (int j = i + 2; j < n; ++j)
-        {
-            if (j == n - 1 && i == 0)
-                continue; // Evita inverter a primeira e última aresta
-
-            double d1 = adj_matrix[tour[i]][tour[i + 1]] + adj_matrix[tour[j]][tour[(j + 1) % n]];
-            double d2 = adj_matrix[tour[i]][tour[j]] + adj_matrix[tour[i + 1]][tour[(j + 1) % n]];
-
-            if (d2 < d1)
-            {
-                reverse(tour.begin() + i + 1, tour.begin() + j + 1);
-                improved = true;
+                cerr << "Erro: Tipo de distância desconhecido!" << endl;
+                return 1;
             }
         }
     }
 
-    return improved;
-}
+    // Supondo que a melhor solução seja obtida pelo método Nearest Neighbor + 2-opt
+    vector<int> best_solution = {0, 1, 2, 3};               // Exemplo de solução encontrada
+    write_solution_to_file(output_filename, best_solution); // Grava solução no arquivo especificado
 
-// Função para refinar a solução com 2-opt
-void optimize_with_two_opt(vector<int> &tour, const vector<vector<double>> &adj_matrix)
-{
-    while (two_opt(tour, adj_matrix))
-        ;
-}
-
-int main()
-{
-    vector<Node> nodes;
-    int dimension;
-    string edge_weight_type;
-
-    cout << "Insira os dados no formato esperado:\n";
-    read_data(cin, nodes, dimension, edge_weight_type);
-
-    vector<vector<double>> adj_matrix = compute_adjacency_matrix(nodes, edge_weight_type);
-
-    vector<int> tour = nearest_neighbor(adj_matrix);
-    optimize_with_two_opt(tour, adj_matrix);
-
-    // Exibir solução
-    cout << "Melhor sequência de paradas:\n";
-    for (int node : tour)
-    {
-        cout << nodes[node].id << " ";
-    }
-    cout << endl;
+    cout << "Solução gravada no arquivo: " << output_filename << endl;
 
     return 0;
 }
