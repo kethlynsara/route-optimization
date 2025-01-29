@@ -44,15 +44,21 @@ double haversine_distance(const Node &a, const Node &b)
 void read_data(istream &input, vector<Node> &nodes, int &dimension, string &edge_weight_type)
 {
     string line;
-    while (input >> line)
+
+    while (getline(input, line))
     {
-        if (line == "DIMENSION:")
+        // Remove espaços extras no início e no final
+        line.erase(0, line.find_first_not_of(" \t"));
+        line.erase(line.find_last_not_of(" \t") + 1);
+
+        if (line.rfind("DIMENSION", 0) == 0)
         {
-            input >> dimension;
+            dimension = stoi(line.substr(line.find(":") + 1));
         }
-        else if (line == "EDGE_WEIGHT_TYPE:")
+        else if (line.rfind("EDGE_WEIGHT_TYPE", 0) == 0)
         {
-            input >> edge_weight_type;
+            edge_weight_type = line.substr(line.find(":") + 1);
+            edge_weight_type.erase(0, edge_weight_type.find_first_not_of(" \t"));
         }
         else if (line == "NODE_COORD_SECTION")
         {
