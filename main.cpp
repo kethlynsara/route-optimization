@@ -39,11 +39,11 @@ double haversine_distance(const Node &a, const Node &b)
     return EARTH_RADIUS * c;
 }
 
-void read_data(vector<Node> &nodes, int &dimension, string &edge_weight_type, string &output_file)
+void read_data(vector<Node> &nodes, int &dimension, string &edge_weight_type)
 {
-    cout << "Digite o nome do arquivo de saída: " << endl;
-    cin >> output_file;
     string line;
+    cout << "Lendo dados da instância..." << endl;
+
     while (getline(cin, line))
     {
         line.erase(0, line.find_first_not_of(" \t"));
@@ -148,6 +148,8 @@ bool optimize_tour(vector<int> &tour, const vector<vector<double>> &adj_matrix)
 
 void solve_instance(vector<Node> &nodes, const string &edge_weight_type, const string &output_file)
 {
+    cout << "Resolvendo a instância..." << endl;
+
     vector<vector<double>> adj_matrix = compute_adjacency_matrix(nodes, edge_weight_type);
     auto start = high_resolution_clock::now();
     vector<int> tour = nearest_neighbor(adj_matrix);
@@ -157,27 +159,38 @@ void solve_instance(vector<Node> &nodes, const string &edge_weight_type, const s
     double final_max_edge = max_edge_in_tour(tour, adj_matrix);
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start).count();
+
     ofstream output(output_file);
     for (size_t i = 0; i < tour.size(); i++)
     {
         output << "v_" << nodes[tour[i]].id << (i < tour.size() - 1 ? " " : "");
     }
     output.close();
+
     cout << "-------------------------------\n";
     cout << "Solução inicial: " << initial_max_edge << "\n";
     cout << "Solução final: " << final_max_edge << "\n";
     cout << "Desvio percentual: " << (100 * (initial_max_edge - final_max_edge) / initial_max_edge) << "%\n";
     cout << "Tempo total: " << duration << " ms\n";
+    cout << "Resultados salvos em: " << output_file << "\n";
     cout << "-------------------------------\n";
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    string output_file;
+    if (argc < 2)
+    {
+        cout << "Uso correto: ./main <arquivo_saida> < instância.ins>\n";
+        return 1;
+    }
+
+    string output_file = argv[1];
     vector<Node> nodes;
     int dimension;
     string edge_weight_type;
-    read_data(nodes, dimension, edge_weight_type, output_file);
+
+    read_data(nodes, dimension, edge_weight_type);
     solve_instance(nodes, edge_weight_type, output_file);
+
     return 0;
 }
