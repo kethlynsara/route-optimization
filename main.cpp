@@ -5,11 +5,19 @@
 #include <limits>
 #include <algorithm>
 #include <chrono>
+#include <iomanip>
+#include <map>
+#include <sys/utsname.h>
+#include <regex>
 
 using namespace std;
 using namespace std::chrono;
 
 const double EARTH_RADIUS = 6371.0;
+
+// Valores ótimos fornecidos para cada instância
+map<string, double> optimal_values = {
+    {"01", 3986}, {"02", 1289}, {"03", 1476}, {"04", 1133}, {"05", 546}, {"06", 431}, {"07", 219}, {"08", 266}, {"09", 52}, {"10", 237}};
 
 struct Node
 {
@@ -42,8 +50,6 @@ double haversine_distance(const Node &a, const Node &b)
 void read_data(vector<Node> &nodes, int &dimension, string &edge_weight_type)
 {
     string line;
-    cout << "Lendo dados da instância..." << endl;
-
     while (getline(cin, line))
     {
         line.erase(0, line.find_first_not_of(" \t"));
@@ -146,10 +152,40 @@ bool optimize_tour(vector<int> &tour, const vector<vector<double>> &adj_matrix)
     return improved;
 }
 
-void solve_instance(vector<Node> &nodes, const string &edge_weight_type, const string &output_file)
+void get_system_info()
 {
-    cout << "Resolvendo a instância..." << endl;
+    struct utsname sys_info;
+    uname(&sys_info);
+    cout << "Configuração do computador:\n";
+    cout << "Sistema: " << sys_info.sysname << "\n";
+    cout << "Nó: " << sys_info.nodename << "\n";
+    cout << "Versão: " << sys_info.version << "\n";
+    cout << "Máquina: " << sys_info.machine << "\n\n";
+}
 
+void save_tour_to_file(const vector<int> &tour, const string &output_file)
+{
+    ofstream output(output_file);
+    if (output.is_open())
+    {
+        for (size_t i = 0; i < tour.size(); ++i)
+        {
+            output << "v_" << tour[i];
+            if (i < tour.size() - 1)
+                output << " ";
+        }
+        output << "\n";
+        output.close();
+    }
+    else
+    {
+        cerr << "Erro ao abrir o arquivo de saída: " << output_file << endl;
+        exit(1);
+    }
+}
+
+void solve_instance(vector<Node> &nodes, const string &edge_weight_type, const string &instance_name, string output_file)
+{
     vector<vector<double>> adj_matrix = compute_adjacency_matrix(nodes, edge_weight_type);
     auto start = high_resolution_clock::now();
     vector<int> tour = nearest_neighbor(adj_matrix);
@@ -160,37 +196,59 @@ void solve_instance(vector<Node> &nodes, const string &edge_weight_type, const s
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start).count();
 
-    ofstream output(output_file);
-    for (size_t i = 0; i < tour.size(); i++)
-    {
-        output << "v_" << nodes[tour[i]].id << (i < tour.size() - 1 ? " " : "");
-    }
-    output.close();
+    double optimal_value = optimal_values[instance_name];
+    double deviation_initial = 100 * (initial_max_edge - final_max_edge) / initial_max_edge;
+    double deviation_optimal = 100 * (final_max_edge - optimal_value) / optimal_value;
 
-    cout << "-------------------------------\n";
-    cout << "Solução inicial: " << initial_max_edge << "\n";
-    cout << "Solução final: " << final_max_edge << "\n";
-    cout << "Desvio percentual: " << (100 * (initial_max_edge - final_max_edge) / initial_max_edge) << "%\n";
-    cout << "Tempo total: " << duration << " ms\n";
-    cout << "Resultados salvos em: " << output_file << "\n";
-    cout << "-------------------------------\n";
+    cout << "Resultados da instância " << instance_name << ":\n";
+    cout << "SI: " << initial_max_edge << "\n";
+    cout << "SF: " << final_max_edge << "\n";
+    cout << "Desvio percentual (SF vs SI): " << deviation_initial << "%\n";
+    cout << "Desvio percentual (SF vs Ótimo): " << deviation_optimal << "%\n";
+    cout << "Tempo de execução: " << duration << " ms\n\n";
+
+    get_system_info();
+
+    save_tour_to_file(tour, output_file);
+
+    ofstream results("results_table.txt", ios::app);
+    results << instance_name << " " << initial_max_edge << " " << final_max_edge << " "
+            << deviation_initial << " " << deviation_optimal << " " << duration << " ms\n";
+    results.close();
+}
+
+// Função para extrair o nome da instância a partir do caminho do arquivo
+string extract_instance_name(const string &path)
+{
+    regex pattern(".*/([0-9]+)\\.ins$"); // Captura números antes da extensão .ins
+    smatch match;
+    if (regex_search(path, match, pattern))
+    {
+        return match[1]; // Retorna o número capturado
+    }
+    return "unknown"; // Retorno padrão se não encontrar
 }
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2)
+    if (argc < 3)
     {
-        cout << "Uso correto: ./main <arquivo_saida> < instância.ins>\n";
+        cerr << "Uso correto: ./main <arquivo_saida> <caminho_instancia> < instancia.ins\n";
         return 1;
     }
 
-    string output_file = argv[1];
+    string output_file = argv[1];                                // Nome do arquivo de saída
+    string instance_path = argv[2];                              // Caminho do arquivo da instância
+    string instance_name = extract_instance_name(instance_path); // Extrai o nome da instância
+
+    cout << "Resolvendo instância: " << instance_name << endl;
+
+    // Processamento da instância
     vector<Node> nodes;
     int dimension;
     string edge_weight_type;
-
     read_data(nodes, dimension, edge_weight_type);
-    solve_instance(nodes, edge_weight_type, output_file);
+    solve_instance(nodes, edge_weight_type, instance_name, output_file);
 
     return 0;
 }
